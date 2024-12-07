@@ -57,14 +57,18 @@ namespace NosCore.Parser.Parsers
             var dictionaryMusic = packetList.Where(o => o[0].Equals("at") && (o.Length > 7))
                 .GroupBy(x => x[2])
                 .ToDictionary(x => x.Key, x => x.First()[7]);
-            var maps = new DirectoryInfo(folderMap).GetFiles().Select(file => new MapDto
-            {
-                NameI18NKey = dictionaryId.FirstOrDefault(s => s.MapId == int.Parse(file.Name))?.NameI18NKey ?? string.Empty,
-                Music = dictionaryMusic.TryGetValue(file.Name, out var value) ? int.Parse(value) : 0,
-                MapId = short.Parse(file.Name),
-                Data = File.ReadAllBytes(file.FullName),
-                ShopAllowed = short.Parse(file.Name) == 147
-            }).ToList();
+
+            var maps = new DirectoryInfo(folderMap)
+                .GetFiles()
+                .Where(file => short.TryParse(Path.GetFileNameWithoutExtension(file.Name), out _))
+                .Select(file => new MapDto
+                {
+                    NameI18NKey = dictionaryId.FirstOrDefault(s => s.MapId == short.Parse(Path.GetFileNameWithoutExtension(file.Name)))?.NameI18NKey ?? string.Empty,
+                    Music = dictionaryMusic.TryGetValue(file.Name, out var value) ? int.Parse(value) : 0,
+                    MapId = short.Parse(Path.GetFileNameWithoutExtension(file.Name)),
+                    Data = File.ReadAllBytes(file.FullName),
+                    ShopAllowed = short.Parse(Path.GetFileNameWithoutExtension(file.Name)) == 147
+                }).ToList();
 
             await mapDao.TryInsertOrUpdateAsync(maps).ConfigureAwait(false);
             logger.Information(logLanguage[LogLanguageKey.MAPS_PARSED], maps.Count);
